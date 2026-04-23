@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('auth.login_title') }} - Survey System{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 500px; margin-top: 80px;">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">{{ _('auth.login_title') }}</h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <div class="form-group">
+                <label class="form-label">{{ _('auth.username') }}</label>
+                <input type="text" name="username" class="form-control" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ _('auth.password') }}</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                {{ _('auth.login_button') }}
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px; color: #666;">
+            {{ _('auth.no_account') }}
+            <a href="{{ url_for('auth.register') }}" style="color: #667eea;">{{ _('auth.register_button') }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('survey.survey_list') }} - Survey System{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 40px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1 style="color: #1a1a1a;">{{ _('survey.survey_list') }}</h1>
+        <a href="{{ url_for('admin.create_survey') }}" class="btn btn-primary">
+            {{ _('survey.create_survey') }}
+        </a>
+    </div>
+
+    <!-- 筛选 -->
+    <div class="card" style="margin-bottom: 20px;">
+        <form method="GET" style="display: flex; gap: 10px; align-items: center;">
+            <select name="status" class="form-control" style="width: 200px;">
+                <option value="">All Status</option>
+                <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>{{ _('survey.status_draft') }}</option>
+                <option value="published" {% if status_filter == 'published' %}selected{% endif %}>{{ _('survey.status_published') }}</option>
+                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>{{ _('survey.status_closed') }}</option>
+            </select>
+            <button type="submit" class="btn btn-secondary">{{ _('common.search') }}</button>
+        </form>
+    </div>
+
+    <!-- 问卷表格 -->
+    <div class="card">
+        {% if surveys.items %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>{{ _('survey.title') }}</th>
+                        <th>{{ _('survey.survey_status') }}</th>
+                        <th>{{ _('survey.response_count') }}</th>
+                        <th>{{ _('survey.created_at') }}</th>
+                        <th>{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for survey in surveys.items %}
+                        <tr>
+                            <td>{{ survey.id }}</td>
+                            <td>{{ survey.title_zh }}</td>
+                            <td>
+                                {% if survey.status == 'draft' %}
+                                    <span class="badge badge-draft">{{ _('survey.status_draft') }}</span>
+                                {% elif survey.status == 'published' %}
+                                    <span class="badge badge-published">{{ _('survey.status_published') }}</span>
+                                {% else %}
+                                    <span class="badge badge-closed">{{ _('survey.status_closed') }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ survey.response_count }}</td>
+                            <td>{{ survey.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                    <a href="{{ url_for('admin.preview_survey', survey_id=survey.id) }}" class="btn btn-sm btn-secondary">{{ _('survey.preview_survey') }}</a>
+
+                                    {% if survey.status == 'draft' %}
+                                        <a href="{{ url_for('admin.edit_survey', survey_id=survey.id) }}" class="btn btn-sm btn-primary">{{ _('common.edit') }}</a>
+                                        <button onclick="publishSurvey({{ survey.id }})" class="btn btn-sm btn-success">{{ _('survey.publish_survey') }}</button>
+                                    {% elif survey.status == 'published' %}
+                                        <button onclick="closeSurvey({{ survey.id }})" class="btn btn-sm btn-danger">{{ _('survey.close_survey') }}</button>
+                                        <a href="{{ url_for('stats.overview', survey_id=survey.id) }}" class="btn btn-sm btn-primary">{{ _('stats.statistics') }}</a>
+                                    {% else %}
+                                        <a href="{{ url_for('stats.overview', survey_id=survey.id) }}" class="btn btn-sm btn-primary">{{ _('stats.statistics') }}</a>
+                                    {% endif %}
+
+                                    <button onclick="copySurvey({{ survey.id }})" class="btn btn-sm btn-secondary">{{ _('survey.copy_survey') }}</button>
+                                    <button onclick="deleteSurvey({{ survey.id }})" class="btn btn-sm btn-danger">{{ _('common.delete') }}</button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- 分页 -->
+            {% if surveys.pages > 1 %}
+                <div class="pagination">
+                    {% if surveys.has_prev %}
+                        <a href="{{ url_for('admin.survey_list', page=surveys.prev_num, status=status_filter) }}">Prev</a>
+                    {% endif %}
+
+                    {% for page_num in surveys.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == surveys.page %}
+                                <span class="active">{{ page_num }}</span>
+                            {% else %}
+                                <a href="{{ url_for('admin.survey_list', page=page_num, status=status_filter) }}">{{ page_num }}</a>
+                            {% endif %}
+                        {% else %}
+                            <span>...</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if surveys.has_next %}
+                        <a href="{{ url_for('admin.survey_list', page=surveys.next_num, status=status_filter) }}">Next</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">{{ _('survey.no_surveys') }}</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function publishSurvey(id) {
+    if (!confirm('Are you sure you want to publish this survey?')) return;
+
+    fetch(`/admin/surveys/${id}/publish`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function closeSurvey(id) {
+    if (!confirm('Are you sure you want to close this survey?')) return;
+
+    fetch(`/admin/surveys/${id}/close`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function copySurvey(id) {
+    if (!confirm('Are you sure you want to copy this survey?')) return;
+
+    fetch(`/admin/surveys/${id}/copy`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function deleteSurvey(id) {
+    if (!confirm('{{ _("message.confirm_delete") }}')) return;
+
+    fetch(`/admin/surveys/${id}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

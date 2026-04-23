@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('survey.edit_survey') }} - Survey System{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 40px;">
+    <h1 style="color: #1a1a1a; margin-bottom: 30px;">{{ _('survey.edit_survey') }}</h1>
+
+    <div class="card">
+        <form method="POST" action="{{ url_for('admin.edit_survey', survey_id=survey.id) }}">
+            <!-- 基本信息 -->
+            <h3 style="margin-bottom: 20px;">Basic Information</h3>
+
+            <div class="form-group">
+                <label class="form-label">{{ _('survey.title') }} *</label>
+                <input type="text" name="title_zh" class="form-control" value="{{ survey.title_zh }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ _('survey.description') }}</label>
+                <textarea name="description_zh" class="form-control">{{ survey.description_zh or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ _('survey.start_time') }}</label>
+                <input type="datetime-local" name="start_time" class="form-control"
+                       value="{% if survey.start_time %}{{ survey.start_time.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ _('survey.end_time') }}</label>
+                <input type="datetime-local" name="end_time" class="form-control"
+                       value="{% if survey.end_time %}{{ survey.end_time.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="allow_anonymous" {% if survey.allow_anonymous %}checked{% endif %}>
+                    {{ _('survey.allow_anonymous') }}
+                </label>
+            </div>
+
+            <hr style="margin: 30px 0;">
+
+            <!-- 问题列表 -->
+            <h3 style="margin-bottom: 20px;">Questions</h3>
+            <div id="questions-container">
+                {% for question in survey.questions %}
+                    <div class="question-item" id="question-{{ loop.index0 }}">
+                        <div class="form-group">
+                            <label class="form-label">Question Text *</label>
+                            <input type="text" name="question_text_zh_{{ loop.index0 }}" class="form-control" value="{{ question.question_text_zh }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Question Type</label>
+                            <select name="question_type_{{ loop.index0 }}" class="form-control" onchange="handleQuestionTypeChange({{ loop.index0 }}, this.value)">
+                                <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Single Choice</option>
+                                <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Multiple Choice</option>
+                                <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Text Input</option>
+                                <option value="rating" {% if question.question_type == 'rating' %}selected{% endif %}>Rating</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="is_required_{{ loop.index0 }}" {% if question.is_required %}checked{% endif %}>
+                                {{ _('question.is_required') }}
+                            </label>
+                        </div>
+                        <div id="options-container-{{ loop.index0 }}" class="options-container" style="{% if question.question_type not in ['single', 'multiple'] %}display:none;{% endif %}">
+                            {% for option in question.options %}
+                                <div class="option-item" id="option-{{ loop.index0 }}-{{ loop.index0 }}">
+                                    <div class="form-group">
+                                        <label class="form-label">Option Text *</label>
+                                        <input type="text" name="option_text_zh_{{ loop.index0 }}_{{ loop.index0 }}" class="form-control" value="{{ option.option_text_zh }}" required>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeOption({{ loop.index0 }}, {{ loop.index0 }})">{{ _('common.delete') }}</button>
+                                </div>
+                            {% endfor %}
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addOption({{ loop.index0 }})">{{ _('question.add_option') }}</button>
+                            <input type="hidden" id="option_count_{{ loop.index0 }}" name="option_count_{{ loop.index0 }}" value="{{ question.options.count() }}">
+                        </div>
+                        <div class="form-group" id="max-length-{{ loop.index0 }}" style="{% if question.question_type != 'text' %}display:none;{% endif %}">
+                            <label class="form-label">{{ _('question.max_length') }}</label>
+                            <input type="number" name="max_length_{{ loop.index0 }}" class="form-control" value="{{ question.max_length or 500 }}">
+                        </div>
+                        <div class="form-group" id="rating-scale-{{ loop.index0 }}" style="{% if question.question_type != 'rating' %}display:none;{% endif %}">
+                            <label class="form-label">{{ _('question.rating_scale') }}</label>
+                            <select name="rating_scale_{{ loop.index0 }}" class="form-control">
+                                <option value="5" {% if question.rating_scale == 5 %}selected{% endif %}>1-5</option>
+                                <option value="10" {% if question.rating_scale == 10 %}selected{% endif %}>1-10</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeQuestion({{ loop.index0 }})">{{ _('survey.delete_survey') }}</button>
+                        <hr>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="btn btn-secondary" onclick="addQuestion()">
+                {{ _('question.add_question') }}
+            </button>
+
+            <input type="hidden" id="question_count" name="question_count" value="{{ survey.questions.count() }}">
+
+            <script>
+                questionCount = {{ survey.questions.count() }};
+                {% for question in survey.questions %}
+                    optionCounts[{{ loop.index0 }}] = {{ question.options.count() }};
+                {% endfor %}
+            </script>
+
+            <hr style="margin: 30px 0;">
+
+            <!-- 提交按钮 -->
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary">{{ _('common.save') }}</button>
+                <a href="{{ url_for('admin.survey_list') }}" class="btn btn-secondary">{{ _('common.cancel') }}</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
